@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Bet History - GameCoin{% endblock %}
+{% block content %}
+<h4>Recent Bets for {{ username }}</h4>
+<table class="table table-striped">
+  <thead><tr><th>Date</th><th>Bet</th><th>Choice</th><th>Result</th><th>Win/Loss</th></tr></thead>
+  <tbody>
+    {% for b in bets %}
+      <tr>
+        <td>{{ b.created_at }}</td>
+        <td>{{ b.bet_amount }}</td>
+        <td>{{ b.choice }}</td>
+        <td>{{ b.result }}</td>
+        <td>
+          {% if b.win_loss >= 0 %}
+            <span class="text-success">+{{ b.win_loss }}</span>
+          {% else %}
+            <span class="text-danger">{{ b.win_loss }}</span>
+          {% endif %}
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5">No bets yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+<a href="{{ url_for('player_dashboard') }}" class="btn btn-secondary">Back</a>
+{% endblock %}

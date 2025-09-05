@@ -1,0 +1,130 @@
+from flask import Flask, request, redirect, url_for, render_template, session
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.secret_key = "supersecretkey"
+
+# Database setup
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gamecoin.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+# User Model
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(50), nullable=False)
+    coins = db.Column(db.Integer, default=100)
+
+with app.app_context():
+    db.create_all()
+
+# Admin credentials
+ADMIN_USER = "admin"
+ADMIN_PASS = "admin123"
+
+# ---------------- Routes ----------------
+@app.route("/", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        # Admin login
+        if username == ADMIN_USER and password == ADMIN_PASS:
+            session["user"] = "admin"
+            return redirect(url_for("admin_dashboard"))
+
+        # Player login
+        user = User.query.filter_by(username=username, password=password).first()
+        if user:
+            session["user"] = user.username
+            return redirect(url_for("player_dashboard"))
+
+        return "Invalid credentials! <a href='/'>Try again</a>"
+
+    return render_template("login.html")
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+
+        if User.query.filter_by(username=username).first():
+            return "Username already exists! <a href='/register'>Try again</a>"
+
+        new_user = User(username=username, password=password, coins=100)
+        db.session.add(new_user)
+        db.session.commit()
+        return "Player registered successfully! <a href='/'>Login</a>"
+
+    return render_template("register.html")
+
+
+@app.route("/admin")
+def admin_dashboard():
+    if session.get("user") == "admin":
+        players = User.query.all()
+        return render_template("admin.html", players=players)
+    return redirect("/")
+
+
+@app.route("/admin/add", methods=["POST"])
+def admin_add():
+    if session.get("user") == "admin":
+        player = request.form["player"]
+        amount = int(request.form["amount"])
+        user = User.query.filter_by(username=player).first()
+        if user:
+            user.coins += amount
+            db.session.commit()
+        return redirect("/admin")
+    return redirect("/")
+
+
+@app.route("/admin/remove", methods=["POST"])
+def admin_remove():
+    if session.get("user") == "admin":
+        player = request.form["player"]
+        amount = int(request.form["amount"])
+        user = User.query.filter_by(username=player).first()
+        if user and user.coins >= amount:
+            user.coins -= amount
+            db.session.commit()
+        return redirect("/admin")
+    return redirect("/")
+
+
+@app.route("/player")
+def player_dashboard():
+    username = session.get("user")
+    if username and username != "admin":
+        user = User.query.filter_by(username=username).first()
+        return render_template("player.html", username=user.username, coins=user.coins)
+    return redirect("/")
+
+
+@app.route("/play", methods=["POST"])
+def play_game():
+    username = session.get("user")
+    if username and username != "admin":
+        user = User.query.filter_by(username=username).first()
+        if user and user.coins >= 10:
+            user.coins -= 10
+            db.session.commit()
+            return f"Game played! 10 coins deducted. <a href='/player'>Back</a>"
+        else:
+            return "Not enough coins! <a href='/player'>Back</a>"
+    return redirect("/")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
