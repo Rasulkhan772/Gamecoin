@@ -191,3 +191,10 @@ def logout():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+# --- Google verification route (serve static file from /static at root) ---
+@app.route("/googleb1a6bf23852c0f70.html")
+def google_verify():
+    # import inside function to be safe
+    from flask import send_from_directory
+    return send_from_directory('static', 'googleb1a6bf23852c0f70.html')
